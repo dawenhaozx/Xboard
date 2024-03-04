@@ -1,7 +1,7 @@
 version: '3'
 services:
   xboard:
-    image: ghcr.io/cedar2025/xboard:latest
+    image: ghcr.io/dawenhaozx/xboard:latest
     volumes:
       - ./.env:/www/.env
       - ./.docker/.data/:/www/.docker/.data/
@@ -9,10 +9,23 @@ services:
       - redis-socket:/run/redis-socket # 挂载socket
     environment:
       - docker=true #用于给安装脚本判断是否为docker环境
+    links:
+      - mysql
     depends_on:
       - redis
-    network_mode: host
+    ports:
+      - '7001:7001'
     restart: always
+
+  mysql:
+    image: arm64v8/mysql:latest
+    volumes:
+      - './mysql:/var/lib/mysql'
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: '1234565'
+      MYSQL_DATABASE: 'xboard'
+      
   redis:
     build: 
       context: .docker/services/redis
