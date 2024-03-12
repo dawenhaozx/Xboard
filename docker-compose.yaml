@@ -2,36 +2,31 @@ version: '3'
 services:
   xboard:
     image: ghcr.io/dawenhaozx/xboard:latest
+    container_name: xboard
+    restart: unless-stopped
+    environment:
+      - docker=true
+    ports:
+      - "7001:7001"
     volumes:
       - ./.env:/www/.env
-      - ./.docker/.data/:/www/.docker/.data/
-      # - ./config/v2board.php:/www/config/v2board.php
-      - redis-socket:/run/redis-socket # 挂载socket
-    environment:
-      - docker=true #用于给安装脚本判断是否为docker环境
-    links:
-      - mysql
     depends_on:
+      - mariadb
       - redis
-    ports:
-      - '7001:7001'
-    restart: always
 
-  mysql:
-    image: arm64v8/mysql:latest
-    volumes:
-      - './mysql:/var/lib/mysql'
-    restart: always
+  mariadb:
+    image: mariadb:latest
+    container_name: mariadb
+    restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: '1234565'
-      MYSQL_DATABASE: 'xboard'
-      
-  redis:
-    build: 
-      context: .docker/services/redis
-    restart: always
+      - MARIADB_ROOT_PASSWORD=password
+      - MARIADB_DATABASE=xboard
     volumes:
-      - ./.docker/.data/redis:/data/ # 挂载redis持久化数据
-      - redis-socket:/run/redis-socket # 挂载socket
-volumes:
-  redis-socket:
+      - ./mariadb-data:/var/lib/mysql
+
+  redis:
+    image: redis:alpine
+    container_name: redis
+    restart: unless-stopped
+    volumes:
+      - ./redis-data:/data
