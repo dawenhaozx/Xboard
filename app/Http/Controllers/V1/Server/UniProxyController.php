@@ -36,10 +36,8 @@ class UniProxyController extends Controller
         ini_set('memory_limit', -1);
         Cache::put(CacheKey::get('SERVER_' . strtoupper($this->nodeType) . '_LAST_CHECK_AT', $this->nodeInfo->id), time(), 3600);
         $users = $this->serverService->getAvailableUsers($this->nodeInfo->group_id);
-        $users = $users->toArray();
-
-        $response['users'] = $users;
-
+        Cache::put('ALIVE_USERS_' . $this->nodeType . $this->nodeId , $users, 3600); // 缓存 $result
+        $response['users'] = $users->toArray();
         $eTag = sha1(json_encode($response));
         if (strpos($request->header('If-None-Match'), $eTag) !== false ) {
             return response(null, 304);
@@ -48,6 +46,34 @@ class UniProxyController extends Controller
         return response($response)->header('ETag', "\"{$eTag}\"");
     }
 
+    // 后端获取用户ips
+    public function aips(Request $request)
+    {
+        ini_set('memory_limit', -1);
+        $cacheKey = 'ALIVE_USERS_' . $this->nodeType . $this->nodeId;
+        $users = Cache::remember($cacheKey, now()->addMinutes(10), function () {
+            return $this->serverService->getAvailableUsers($this->nodeInfo->group_id);
+        });
+        $result = $users->map(function ($user) {
+            $cacheKey = 'ALIVE_IP_USER_' . $user->id;
+            $alive_ips = Cache::get($cacheKey)['alive_ips'] ?? null;
+            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== null) {
+                $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
+            }
+    
+            return [
+                'id' => $user->id,
+                'alive_ips' => $alive_ips ?? [],
+            ];
+        });
+        $response['users'] = $result->toArray();
+        $eTag = sha1(json_encode($response));
+        if ($request->header('If-None-Match') === $eTag) {
+            return response(null, 304);
+        }
+        return response($response)->header('ETag', "\"{$eTag}\"");
+    }
+    
     // 后端提交数据
     public function push(Request $request)
     {
@@ -94,6 +120,53 @@ class UniProxyController extends Controller
 
         return $this->success(true);
     }
+
+// 后端提交在线数据
+public function alive(Request $request)
+{
+    ini_set('memory_limit', -1);
+    $requestData = json_decode(get_request_content(), true);
+    $nodeTypeNodeId = $this->nodeType . $this->nodeId;
+    $cacheKey = 'ALIVE_USERS_' . $nodeTypeNodeId;
+    $users = Cache::remember($cacheKey, now()->addMinutes(10), function () {
+        return $this->serverService->getAvailableUsers($this->nodeInfo->group_id);
+    });
+
+     // 构建需要更新的缓存数据
+     $cacheData = [];
+     foreach ($users as $user) {
+         $userId = $user->id;
+         $ipsData = $requestData[$userId] ?? [];
+         $cachedIpsData = ['aliveips' => $ipsData];
+         
+         // 统计去重后的IP数量并排序
+         $uniqueIps = [];
+         foreach ($ipsData as $ipTimestamp) {
+             list($ipAddress, $timestamp) = explode('_', $ipTimestamp);
+             $uniqueIps[$ipAddress] = max($timestamp, $uniqueIps[$ipAddress] ?? 0);
+         }
+         arsort($uniqueIps);
+         $sortedUniqueIps = array_keys($uniqueIps);
+ 
+         // 对同一用户的IP进行去重
+         $aliveIps = array_unique(array_map(function ($ip) {
+             return explode('_', $ip)[0];
+         }, $sortedUniqueIps));
+ 
+         $cachedIpsData['alive_ips'] = array_values($aliveIps);
+         $cachedIpsData['alive_ip'] = count($cachedIpsData['alive_ips']);
+ 
+         $cacheData[$userId] = $cachedIpsData;
+     }
+ 
+     // 批量写入缓存
+     foreach ($cacheData as $userId => $cachedIpsData) {
+         $cacheKey = 'ALIVE_IP_USER_' . $userId;
+         Cache::put($cacheKey, $cachedIpsData, admin_setting('server_pull_interval', 60) * 2);
+     }
+
+    return $this->success(true);
+}
 
     // 后端获取配置
     public function config(Request $request)
@@ -168,10 +241,4 @@ class UniProxyController extends Controller
 
         return response($response)->header('ETag', "\"{$eTag}\"");
     }
-
-     // 后端提交在线数据
-     public function alive(Request $request)
-     {
-        return $this->success(true);
-     }
 }
