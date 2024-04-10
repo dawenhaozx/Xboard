@@ -216,7 +216,7 @@ class UniProxyController extends Controller
              $cachedIpsData['alive_ips'] = array_values($aliveIps);
              $cachedIpsData['alive_ip'] = count($cachedIpsData['alive_ips']);
      
-             $cacheData[$userId] = $cachedIpsData;
+             $cacheData['ALIVE_IP_USER_' . $userId] = $cachedIpsData;
          }
      
          // 批量写入缓存
