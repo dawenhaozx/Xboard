@@ -202,7 +202,7 @@ class UniProxyController extends Controller
              $ips_array = Cache::get('ALIVE_IP_USER_'. $user->id) ?? [];
              $allAliveIPs = [];
             // 更新节点数据
-            $ips_array[$this->nodeType . $this->nodeId] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
+            $ips_array[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
             // 清理过期数据
             foreach($ips_array as $nodetypeid => $oldips) { 
                 if (!is_int($oldips) && ($updateAt - $oldips['lastupdateAt'] > 120)) { 
