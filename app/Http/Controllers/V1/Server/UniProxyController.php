@@ -47,7 +47,7 @@ class UniProxyController extends Controller
 
             return [
                 'id' => $user->id,
-                'alive_ips' => $alive_ips,
+                'alive_ips' => $alive_ips ?? [],
             ];
         });
         $response['users'] = $result->toArray();
@@ -190,41 +190,33 @@ class UniProxyController extends Controller
     {
         ini_set('memory_limit', -1);
         $requestData = json_decode(get_request_content(), true);
-        $users = Cache::remember('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), now()->addMinutes(10), function () use ($request) {
+        $nodetypeid = $request->input('nodeType') . $request->input('nodeId');
+        $users = Cache::remember('ALIVE_USERS_' . $nodetypeid, now()->addMinutes(10), function () use ($request) {
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
-
-        $updateAt = time();
         // 构建需要更新的缓存数据
         $cacheData = [];
-        $nodetypeid = $request->input('nodeType') . $request->input('nodeId');
         foreach ($users as $user) {
-            $ipsData = $requestData[$user->id] ?? [];
-            $ips_array = Cache::get('ALIVE_IP_USER_' . $user->id) ?? [];
-            $allAliveIPs = [];
-            // 更新节点数据
-            if ($ipsData !== [] && $ips_array[$nodetypeid] !== []) {
-                $ips_array[$nodetypeid] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
-                // 清理过期数据
-                foreach ($ips_array as $nodetypeid => $oldips) {
-                    if (!is_int($oldips) && ($updateAt - $oldips['lastupdateAt'] > 120)) {
-                        unset($ips_array[$nodetypeid]);
-                    } else if (!is_int($oldips) && isset($oldips['aliveips'])) {
-                        $allAliveIPs = array_merge($allAliveIPs, $oldips['aliveips']);
-                    }
-                }
-            }
+            $userId = $user->id;
+            $ipsData = $requestData[$userId] ?? [];
+            $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
+            $cachedIpsData[$nodetypeid] = ['aliveips' => $ipsData];
+
             // 对同一用户的IP进行去重
-            $aliveIps = array_unique($allAliveIPs);
+            $allAliveIPs = [];
+            foreach ($cachedIpsData as $nodetypeid) {
+                $allAliveIPs = array_merge($allAliveIPs, $nodetypeid['aliveips']);
+            }
+            $uniqueIps = array_unique($allAliveIPs);
 
-            $ips_array['alive_ips'] = $aliveIps;
-            $ips_array['alive_ip'] = count($aliveIps);
+            $cachedIpsData['alive_ips'] = array_values($uniqueIps);
+            $cachedIpsData['alive_ip'] = count($uniqueIps);
 
-            $cacheData['ALIVE_IP_USER_' . $user->id] = $ips_array;
+            $cacheData['ALIVE_IP_USER_' . $userId] = $cachedIpsData;
         }
 
         // 批量写入缓存
-        Cache::putMany($cacheData, 135);
+        Cache::putMany($cacheData, 10);
 
         return $this->success(true);
     }
