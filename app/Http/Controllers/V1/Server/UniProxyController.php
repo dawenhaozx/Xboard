@@ -194,30 +194,29 @@ class UniProxyController extends Controller
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         // 构建需要更新的缓存数据
-        $cacheData = [];
         foreach ($users as $user) {
             $userId = $user->id;
             $ipsData = $requestData[$userId] ?? [];
             $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
-            $cachedIpsData[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ipsData];
+            $nodeTypeId = $request->input('nodeType') . $request->input('nodeId');
+            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData];
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach ($cachedIpsData as $nodeTypeId => $data) {
-                if (isset($data['aliveips'])) {
-                    $allAliveIPs = array_merge($allAliveIPs, $data['aliveips']);
+            foreach($cachedIpsData as $newdata) {
+                if (!is_int($newdata) && isset($newdata['aliveips'])) {
+                    $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
                 }
             }
-            $uniqueIps = array_unique($allAliveIPs);
 
-            $cachedIpsData['alive_ips'] = array_values($uniqueIps);
-            $cachedIpsData['alive_ip'] = count($uniqueIps);
+            $cachedIpsData['alive_ips'] = array_unique($allAliveIPs);
+            $cachedIpsData['alive_ip'] = count($cachedIpsData['alive_ips']);
 
-            $cacheData['ALIVE_IP_USER_' . $userId] = $cachedIpsData;
+            Cache::put('ALIVE_IP_USER_'. $userId, $cachedIpsData, 120);
         }
 
-        // 批量写入缓存
-        Cache::putMany($cacheData, 10);
+        // // 批量写入缓存
+        // Cache::putMany($cacheData, 10);
 
         return $this->success(true);
     }
