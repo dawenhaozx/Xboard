@@ -190,8 +190,7 @@ class UniProxyController extends Controller
     {
         ini_set('memory_limit', -1);
         $requestData = json_decode(get_request_content(), true);
-        $nodetypeid = $request->input('nodeType') . $request->input('nodeId');
-        $users = Cache::remember('ALIVE_USERS_' . $nodetypeid, now()->addMinutes(10), function () use ($request) {
+        $users = Cache::remember('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), now()->addMinutes(10), function () use ($request) {
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         // 构建需要更新的缓存数据
@@ -200,12 +199,14 @@ class UniProxyController extends Controller
             $userId = $user->id;
             $ipsData = $requestData[$userId] ?? [];
             $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
-            $cachedIpsData[$nodetypeid] = ['aliveips' => $ipsData];
+            $cachedIpsData[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ipsData];
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach ($cachedIpsData as $nodetypeid) {
-                $allAliveIPs = array_merge($allAliveIPs, $nodetypeid['aliveips']);
+            foreach ($cachedIpsData as $nodeTypeId => $data) {
+                if (isset($data['aliveips'])) {
+                    $allAliveIPs = array_merge($allAliveIPs, $data['aliveips']);
+                }
             }
             $uniqueIps = array_unique($allAliveIPs);
 
