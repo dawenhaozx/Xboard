@@ -40,16 +40,19 @@ class UniProxyController extends Controller
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         $result = $users->map(function ($user) {
-            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? null;
-            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== null) {
+            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? [];
+            if ($alive_ips === []) {
+                return null;
+            }
+            if ($user->device_limit !== null && $user->device_limit > 0) {
                 $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
             }
     
             return [
                 'id' => $user->id,
-                'alive_ips' => $alive_ips ?? [],
+                'alive_ips' => $alive_ips,
             ];
-        });
+        })->filter();
         $response['users'] = $result->toArray();
         $eTag = sha1(json_encode($response));
         if (strpos($request->header('If-None-Match'), $eTag) !== false) {
@@ -197,12 +200,16 @@ class UniProxyController extends Controller
         $updateAt = time();
          // 构建需要更新的缓存数据
          $cacheData = [];
+         $nodetypeid=$request->input('nodeType') . $request->input('nodeId');
          foreach ($users as $user) {
              $ipsData = $requestData[$user->id] ?? [];
              $ips_array = Cache::get('ALIVE_IP_USER_'. $user->id) ?? [];
+             if ($ipsData==[]&&$ips_array[$nodetypeid]==[]) {
+             continue;
+             }
              $allAliveIPs = [];
             // 更新节点数据
-            $ips_array[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
+            $ips_array[$nodetypeid] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
             // 清理过期数据
             foreach($ips_array as $nodetypeid => $oldips) { 
                 if (!is_int($oldips) && ($updateAt - $oldips['lastupdateAt'] > 120)) { 
