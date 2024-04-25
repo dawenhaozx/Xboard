@@ -17,6 +17,7 @@ return new class extends Migration
             $table->integer('id', true);
             $table->integer('group_id');
             $table->integer('transfer_enable');
+            $table->integer('device_limit')->nullable();
             $table->string('name');
             $table->integer('speed_limit')->nullable();
             $table->boolean('show')->default(false);

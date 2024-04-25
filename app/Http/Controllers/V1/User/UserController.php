@@ -80,6 +80,7 @@ class UserController extends Controller
             ->select([
                 'email',
                 'transfer_enable',
+                'device_limit',
                 'last_login_at',
                 'created_at',
                 'banned',
@@ -127,6 +128,7 @@ class UserController extends Controller
                 'u',
                 'd',
                 'transfer_enable',
+                'device_limit',
                 'email',
                 'uuid'
             ])
@@ -140,6 +142,9 @@ class UserController extends Controller
                 return $this->fail([400, __('Subscription plan does not exist')]);
             }
         }
+        // 统计在线设备
+        // $cacheKey = 'ALIVE_IP_USER_' . $user['id'];
+        // $user['alive_ip'] = Cache::get($cacheKey)['alive_ip'] ?? 0;
         $user['subscribe_url'] = Helper::getSubscribeUrl("/api/v1/client/subscribe?token={$user['token']}");
         $userService = new UserService();
         $user['reset_day'] = $userService->getResetDay($user);

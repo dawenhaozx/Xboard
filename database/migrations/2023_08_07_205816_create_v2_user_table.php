@@ -30,6 +30,7 @@ return new class extends Migration
             $table->bigInteger('u')->default(0);
             $table->bigInteger('d')->default(0);
             $table->bigInteger('transfer_enable')->default(0);
+            $table->integer('device_limit')->nullable();
             $table->boolean('banned')->default(false);
             $table->boolean('is_admin')->default(false);
             $table->integer('last_login_at')->nullable();

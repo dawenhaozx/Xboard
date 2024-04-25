@@ -19,10 +19,38 @@ class UniProxyController extends Controller
     {
         ini_set('memory_limit', -1);
         Cache::put(CacheKey::get('SERVER_' . strtoupper($request->input('node_type')) . '_LAST_CHECK_AT', $request->input('node_id')), time(), 3600);
-        $users = ServerService::getAvailableUsers($request->input('node_info')->group_id)->toArray();
+        $users = ServerService::getAvailableUsers($request->input('node_info')->group_id);
+        Cache::put('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), $users, 3600); // 缓存 $users
 
-        $response['users'] = $users;
+        $response['users'] = $users->toArray();
 
+        $eTag = sha1(json_encode($response));
+        if (strpos($request->header('If-None-Match'), $eTag) !== false) {
+            return response(null, 304);
+        }
+
+        return response($response)->header('ETag', "\"{$eTag}\"");
+    }
+
+    // 后端获取用户ips
+    public function aips(Request $request)
+    {
+        ini_set('memory_limit', -1);
+        $users = Cache::remember('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), now()->addMinutes(10), function () use ($request) {
+            return ServerService::getAvailableUsers($request->input('node_info')->group_id);
+        });
+        $result = $users->map(function ($user) {
+            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? null;
+            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== null) {
+                $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
+            }
+
+            return [
+                'id' => $user->id,
+                'alive_ips' => $alive_ips ?? [],
+            ];
+        });
+        $response['users'] = $result->toArray();
         $eTag = sha1(json_encode($response));
         if (strpos($request->header('If-None-Match'), $eTag) !== false) {
             return response(null, 304);
@@ -158,9 +186,40 @@ class UniProxyController extends Controller
         return response($response)->header('ETag', "\"{$eTag}\"");
     }
 
-    // 后端提交在线数据
     public function alive(Request $request)
     {
+        ini_set('memory_limit', -1);
+        $requestData = json_decode(get_request_content(), true);
+        $nodeType = $request->input('nodeType');
+        $nodeId = $request->input('nodeId');
+        $nodeTypeId = $nodeType . $nodeId;
+        $users = Cache::remember('ALIVE_USERS_' . $nodeTypeId, now()->addMinutes(10), function () use ($request) {
+            return ServerService::getAvailableUsers($request->input('node_info')->group_id);
+        });
+        // 构建需要更新的缓存数据
+        $cachedData = [];
+        foreach ($users as $user) {
+            $userId = $user->id;
+            $ipsData = $requestData[$userId] ?? [];
+            $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
+            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData];
+
+            // 对同一用户的IP进行去重
+            $allAliveIPs = [];
+            foreach($cachedIpsData as $newdata) {
+                if (!is_int($newdata) && isset($newdata['aliveips'])) {
+                    $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
+                }
+            }
+
+            $cachedIpsData['alive_ips'] = array_unique($allAliveIPs);
+            $cachedIpsData['alive_ip'] = count($cachedIpsData['alive_ips']);
+
+            $cachedData['ALIVE_IP_USER_' . $userId] = $cachedIpsData;
+        }
+        // 批量写入缓存
+        Cache::putMany($cachedData, 10);
+
         return $this->success(true);
     }
 }
