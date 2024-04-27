@@ -40,14 +40,14 @@ class UniProxyController extends Controller
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         $result = $users->map(function ($user) {
-            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? null;
-            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== null) {
+            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? [];
+            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== []) {
                 $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
             }
 
             return [
                 'id' => $user->id,
-                'alive_ips' => $alive_ips ?? [],
+                'alive_ips' => $alive_ips,
             ];
         });
         $response['users'] = $result->toArray();
@@ -197,22 +197,17 @@ class UniProxyController extends Controller
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         // 构建需要更新的缓存数据
-        $updateAt = time();
         foreach ($users as $user) {
             $userId = $user->id;
             $ipsData = $requestData[$userId] ?? [];
             $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
-            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
+            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData];
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach($cachedIpsData as $newdata) {
-                if (!is_int($newdata) && $updateAt - $newdata['lastupdateAt'] > 135) {
-                    unset($cachedIpsData[$newdata]);
-                    continue;
-                }
-                if (!is_int($newdata) && isset($newdata['aliveips'])) {
-                    $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
+            foreach($cachedIpsData as $nodeTypeId=>$newips) {
+                if ($newips['aliveips']!=[]){
+                    $allAliveIPs = array_merge($allAliveIPs, $newips['aliveips']);
                 }
             }
 
