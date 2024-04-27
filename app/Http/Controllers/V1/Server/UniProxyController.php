@@ -197,18 +197,23 @@ class UniProxyController extends Controller
             return ServerService::getAvailableUsers($request->input('node_info')->group_id);
         });
         // 构建需要更新的缓存数据
+        $updateAt = time();
         $cachedData = [];
         foreach ($users as $user) {
             $userId = $user->id;
             $ipsData = $requestData[$userId] ?? [];
             $cachedIpsData = Cache::get('ALIVE_IP_USER_' . $userId) ?? [];
-            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData];
+            $cachedIpsData[$nodeTypeId] = ['aliveips' => $ipsData, 'lastupdateAt' => $updateAt];
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach($cachedIpsData as $newdata) {
-                if (!is_int($newdata) && isset($newdata['aliveips'])) {
-                    $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
+            foreach ($cachedIpsData as $newdata => $oldips) {
+                if (!is_int($oldips)) {
+                    if ($updateAt - $oldips['lastupdateAt'] > 135) {
+                        unset($ips_array[$newdata]);
+                    } else {
+                        $allAliveIPs = array_merge($allAliveIPs, $oldips);
+                    }
                 }
             }
 
