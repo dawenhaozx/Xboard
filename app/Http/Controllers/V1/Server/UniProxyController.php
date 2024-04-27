@@ -206,13 +206,13 @@ class UniProxyController extends Controller
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach ($cachedIpsData as $newdata => $oldips) {
-                if (!is_int($oldips)) {
-                    if ($updateAt - $oldips['lastupdateAt'] > 135) {
-                        unset($ips_array[$newdata]);
-                    } else {
-                        $allAliveIPs = array_merge($allAliveIPs, $oldips);
-                    }
+            foreach($cachedIpsData as $newdata) {
+                if (!is_int($newdata) && $updateAt - $newdata['lastupdateAt'] > 135) {
+                    unset($cachedIpsData[$newdata]);
+                    continue;
+                }
+                if (!is_int($newdata) && isset($newdata['aliveips'])) {
+                    $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
                 }
             }
 
