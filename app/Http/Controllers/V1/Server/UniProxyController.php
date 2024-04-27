@@ -198,7 +198,6 @@ class UniProxyController extends Controller
         });
         // 构建需要更新的缓存数据
         $updateAt = time();
-        $cachedData = [];
         foreach ($users as $user) {
             $userId = $user->id;
             $ipsData = $requestData[$userId] ?? [];
@@ -220,10 +219,8 @@ class UniProxyController extends Controller
             $cachedIpsData['alive_ips'] = array_unique($allAliveIPs);
             $cachedIpsData['alive_ip'] = count($cachedIpsData['alive_ips']);
 
-            $cachedData['ALIVE_IP_USER_' . $userId] = $cachedIpsData;
+            Cache::put('ALIVE_IP_USER_' . $userId, $cachedIpsData, 3600);
         }
-        // 批量写入缓存
-        Cache::putMany($cachedData, 10);
 
         return $this->success(true);
     }
