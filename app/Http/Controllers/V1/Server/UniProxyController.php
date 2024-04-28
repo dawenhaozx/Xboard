@@ -205,7 +205,7 @@ class UniProxyController extends Controller
 
             // 对同一用户的IP进行去重
             $allAliveIPs = [];
-            foreach($cachedIpsData as $nodeTypeId=>$newips) {
+            foreach($cachedIpsData as $key=>$newips) {
                 if ($newips['aliveips']!=[]){
                     $allAliveIPs = array_merge($allAliveIPs, $newips['aliveips']);
                 }
