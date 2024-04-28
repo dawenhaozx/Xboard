@@ -200,7 +200,7 @@ class UniProxyController extends Controller
             // 更新节点数据
             $ips_array[$NTId] = ['aliveips' => $ips, 'lastupdateAt' => $updateAt];
             // 清理过期数据
-            $allAliveIPs = []
+            $allAliveIPs = [];
             foreach ($ips_array as $nodetypeid => $newdata) {
                 if (!is_int($newdata) && isset($newdata['aliveips'])) {
                     // 判断是否过期
