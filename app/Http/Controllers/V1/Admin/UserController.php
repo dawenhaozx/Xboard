@@ -12,9 +12,11 @@ use App\Jobs\SendEmailJob;
 use App\Models\Plan;
 use App\Models\User;
 use App\Services\AuthService;
+use App\Utils\CacheKey;
 use App\Utils\Helper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class UserController extends Controller
 {
@@ -73,6 +75,9 @@ class UserController extends Controller
                     $res[$i]['plan_name'] = $plan[$k]['name'];
                 }
             }
+            // 统计在线设备
+            $cacheKey = 'ALIVE_IP_USER_' . $res[$i]['id'];
+            $res[$i]['alive_ip'] = Cache::get($cacheKey)['alive_ip'] ?? 0;
             $res[$i]['subscribe_url'] = Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $res[$i]['token']);
         }
         return response([
@@ -154,16 +159,17 @@ class UserController extends Controller
             }
         }
 
-        $data = "邮箱,余额,推广佣金,总流量,剩余流量,套餐到期时间,订阅计划,订阅地址\r\n";
+        $data = "邮箱,余额,推广佣金,总流量,设备数限制,剩余流量,套餐到期时间,订阅计划,订阅地址\r\n";
         foreach($res as $user) {
             $expireDate = $user['expired_at'] === NULL ? '长期有效' : date('Y-m-d H:i:s', $user['expired_at']);
             $balance = $user['balance'] / 100;
             $commissionBalance = $user['commission_balance'] / 100;
             $transferEnable = $user['transfer_enable'] ? $user['transfer_enable'] / 1073741824 : 0;
+            $deviceLimit = $user['device_limit'] ? $user['device_limit'] : NULL;
             $notUseFlow = (($user['transfer_enable'] - ($user['u'] + $user['d'])) / 1073741824) ?? 0;
             $planName = $user['plan_name'] ?? '无订阅';
             $subscribeUrl = Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $user['token']);
-            $data .= "{$user['email']},{$balance},{$commissionBalance},{$transferEnable},{$notUseFlow},{$expireDate},{$planName},{$subscribeUrl}\r\n";
+            $data .= "{$user['email']},{$balance},{$commissionBalance},{$transferEnable},{$deviceLimit},{$notUseFlow},{$expireDate},{$planName},{$subscribeUrl}\r\n";
         }
         echo "\xEF\xBB\xBF" . $data;
     }
@@ -182,6 +188,7 @@ class UserController extends Controller
                 'plan_id' => isset($plan->id) ? $plan->id : NULL,
                 'group_id' => isset($plan->group_id) ? $plan->group_id : NULL,
                 'transfer_enable' => isset($plan->transfer_enable) ? $plan->transfer_enable * 1073741824 : 0,
+                'device_limit' => isset($plan->device_limit) ? $plan->device_limit : NULL,
                 'expired_at' => $request->input('expired_at') ?? NULL,
                 'uuid' => Helper::guid(true),
                 'token' => Helper::guid()
@@ -215,6 +222,7 @@ class UserController extends Controller
                 'plan_id' => isset($plan->id) ? $plan->id : NULL,
                 'group_id' => isset($plan->group_id) ? $plan->group_id : NULL,
                 'transfer_enable' => isset($plan->transfer_enable) ? $plan->transfer_enable * 1073741824 : 0,
+                'device_limit' => isset($plan->device_limit) ? $plan->device_limit : NULL,
                 'expired_at' => $request->input('expired_at') ?? NULL,
                 'uuid' => Helper::guid(true),
                 'token' => Helper::guid(),
