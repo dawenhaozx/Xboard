@@ -35,19 +35,16 @@ class UniProxyController extends Controller
     // 后端获取用户ips
     public function aips(Request $request)
     {
-        ini_set('memory_limit', -1);
-        $users = Cache::remember('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), now()->addMinutes(10), function () use ($request) {
-            return ServerService::getAvailableUsers($request->input('node_info')->group_id);
-        });
+        $users = Cache::get('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId')) ?? [];
         $result = $users->map(function ($user) {
-            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? null;
-            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== null) {
+            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? [];
+            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== []) {
                 $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
             }
 
             return [
                 'id' => $user->id,
-                'alive_ips' => $alive_ips ?? [],
+                'alive_ips' => $alive_ips,
             ];
         });
         $response['users'] = $result->toArray();
@@ -186,19 +183,14 @@ class UniProxyController extends Controller
 
     public function alive(Request $request)
     {
-        ini_set('memory_limit', -1);
         $data = json_decode(get_request_content(), true);
-        $nodeType = $request->input('nodeType');
-        $nodeId = $request->input('nodeId');
-        $NTId = $nodeType . $nodeId;
         // 构建需要更新的缓存数据
-        $cachedData = [];
         $updateAt = time();
         foreach ($data as $uid => $ips) {
-            $ips_array = Cache::get('ALIVE_IP_USER_'. $uid) ?? [];
+            $ips_array = Cache::get('ALIVE_IP_USER_' . $uid) ?? [];
 
             // 更新节点数据
-            $ips_array[$NTId] = ['aliveips' => $ips, 'lastupdateAt' => $updateAt];
+            $ips_array[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ips, 'lastupdateAt' => $updateAt];
             // 清理过期数据
             $allAliveIPs = [];
             foreach ($ips_array as $nodetypeid => $newdata) {
@@ -216,10 +208,8 @@ class UniProxyController extends Controller
             $ips_array['alive_ips'] = array_unique($allAliveIPs);
             $ips_array['alive_ip'] = count($ips_array['alive_ips']);
 
-            $cachedData['ALIVE_IP_USER_' . $uid] = $ips_array;
+            Cache::put('ALIVE_IP_USER_' . $uid, $ips_array, 135);
         }
-        // 批量写入缓存
-        Cache::putMany($cachedData, 3);
 
         return $this->success(true);
     }
