@@ -187,8 +187,8 @@ class UniProxyController extends Controller
         // 构建需要更新的缓存数据
         $updateAt = time();
         foreach ($data as $uid => $ips) {
+            $ips = array_filter($ips, 'strlen');
             $ips_array = Cache::get('ALIVE_IP_USER_' . $uid) ?? [];
-
             // 更新节点数据
             $ips_array[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ips, 'lastupdateAt' => $updateAt];
             // 清理过期数据
