@@ -40,12 +40,11 @@ class UniProxyController extends Controller
             $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? [];
             if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== []) {
                 $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
+                return [
+                    'id' => $user->id,
+                    'alive_ips' => $alive_ips,
+                ];
             }
-
-            return [
-                'id' => $user->id,
-                'alive_ips' => $alive_ips,
-            ];
         });
         $response['users'] = $result->toArray();
         $eTag = sha1(json_encode($response));
