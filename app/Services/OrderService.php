@@ -67,6 +67,8 @@ class OrderService
             }
 
             $this->setSpeedLimit($plan->speed_limit);
+            
+            $this->setDeviceLimit($plan->device_limit);
 
             if (!$this->user->save()) {
                 throw new \Exception('用户信息保存失败');
@@ -262,6 +264,11 @@ class OrderService
         $this->user->d = 0;
     }
 
+    private function setDeviceLimit($deviceLimit)
+    {
+        $this->user->device_limit = $deviceLimit;
+    }
+
     private function buyByPeriod(Order $order, Plan $plan)
     {
         // change plan process
@@ -269,6 +276,7 @@ class OrderService
             $this->user->expired_at = time();
         }
         $this->user->transfer_enable = $plan->transfer_enable * 1073741824;
+        $this->user->device_limit = $plan->device_limit;
         // 从一次性转换到循环
         if ($this->user->expired_at === NULL) $this->buyByResetTraffic();
         // 新购
@@ -282,6 +290,7 @@ class OrderService
     {
         $this->buyByResetTraffic();
         $this->user->transfer_enable = $plan->transfer_enable * 1073741824;
+        $this->user->device_limit = $plan->device_limit;
         $this->user->plan_id = $plan->id;
         $this->user->group_id = $plan->group_id;
         $this->user->expired_at = NULL;
