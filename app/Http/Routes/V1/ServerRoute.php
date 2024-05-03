@@ -20,6 +20,7 @@ class ServerRoute
             ] ,function ($route) {
                 $route->get('config', [UniProxyController::class, 'config']);
                 $route->get('user', [UniProxyController::class, 'user']);
+                $route->get('aips', [UniProxyController::class, 'aips']);
                 $route->post('push', [UniProxyController::class, 'push']);
                 $route->post('alive', [UniProxyController::class, 'alive']);
             });

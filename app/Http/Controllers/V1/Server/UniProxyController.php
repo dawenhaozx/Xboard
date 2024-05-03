@@ -19,10 +19,36 @@ class UniProxyController extends Controller
     {
         ini_set('memory_limit', -1);
         Cache::put(CacheKey::get('SERVER_' . strtoupper($request->input('node_type')) . '_LAST_CHECK_AT', $request->input('node_id')), time(), 3600);
-        $users = ServerService::getAvailableUsers($request->input('node_info')->group_id)->toArray();
+        $users = ServerService::getAvailableUsers($request->input('node_info')->group_id);
+        Cache::put('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId'), $users, 3600); // 缓存 $users
 
-        $response['users'] = $users;
+        $response['users'] = $users->toArray();
 
+        $eTag = sha1(json_encode($response));
+        if (strpos($request->header('If-None-Match'), $eTag) !== false) {
+            return response(null, 304);
+        }
+
+        return response($response)->header('ETag', "\"{$eTag}\"");
+    }
+
+    // 后端获取用户ips
+    public function aips(Request $request)
+    {
+        $users = Cache::get('ALIVE_USERS_' . $request->input('nodeType') . $request->input('nodeId')) ?? [];
+        $result = $users->map(function ($user) {
+            $alive_ips = Cache::get('ALIVE_IP_USER_' . $user->id)['alive_ips'] ?? [];
+            if ($user->device_limit !== null && $user->device_limit > 0 && $alive_ips !== []) {
+                $alive_ips = array_slice($alive_ips, 0, $user->device_limit);
+            } else {
+                $alive_ips = [];
+            }
+            return [
+                'id' => $user->id,
+                'alive_ips' => $alive_ips,
+            ];
+        });
+        $response['users'] = $result->toArray();
         $eTag = sha1(json_encode($response));
         if (strpos($request->header('If-None-Match'), $eTag) !== false) {
             return response(null, 304);
@@ -156,9 +182,36 @@ class UniProxyController extends Controller
         return response($response)->header('ETag', "\"{$eTag}\"");
     }
 
-    // 后端提交在线数据
     public function alive(Request $request)
     {
+        $data = json_decode(get_request_content(), true);
+        // 构建需要更新的缓存数据
+        $updateAt = time();
+        foreach ($data as $uid => $ips) {
+            $ips = array_filter($ips, 'strlen');
+            $ips_array = Cache::get('ALIVE_IP_USER_' . $uid) ?? [];
+            // 更新节点数据
+            $ips_array[$request->input('nodeType') . $request->input('nodeId')] = ['aliveips' => $ips, 'lastupdateAt' => $updateAt];
+            // 清理过期数据
+            $allAliveIPs = [];
+            foreach ($ips_array as $nodetypeid => $newdata) {
+                if (!is_int($newdata) && isset($newdata['aliveips'])) {
+                    // 判断是否过期
+                    if ($updateAt - $newdata['lastupdateAt'] <= 135) {
+                        // 如果未过期，将 aliveips 合并到 allAliveIPs 中
+                        $allAliveIPs = array_merge($allAliveIPs, $newdata['aliveips']);
+                    } else {
+                        // 如果过期，移除该节点数据
+                        unset($ips_array[$nodetypeid]);
+                    }
+                }
+            }
+            $ips_array['alive_ips'] = array_unique($allAliveIPs);
+            $ips_array['alive_ip'] = count($ips_array['alive_ips']);
+
+            Cache::put('ALIVE_IP_USER_' . $uid, $ips_array, 135);
+        }
+
         return $this->success(true);
     }
 }
