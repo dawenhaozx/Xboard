@@ -90,6 +90,7 @@ class ConfigController extends Controller
                 'app_description' => admin_setting('app_description', 'XBoard is best!'),
                 'app_url' => admin_setting('app_url'),
                 'subscribe_url' => admin_setting('subscribe_url'),
+                'subscribe_path' => config('subscribe_path', '/api/v1/client/subscribe'),
                 'try_out_plan_id' => (int)admin_setting('try_out_plan_id', 0),
                 'try_out_hour' => (int)admin_setting('try_out_hour', 1),
                 'tos_url' => admin_setting('tos_url'),
