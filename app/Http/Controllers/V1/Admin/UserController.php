@@ -78,7 +78,7 @@ class UserController extends Controller
             // 统计在线设备
             $cacheKey = 'ALIVE_IP_USER_' . $res[$i]['id'];
             $res[$i]['alive_ip'] = Cache::get($cacheKey)['alive_ip'] ?? 0;
-            $res[$i]['subscribe_url'] = Helper::getSubscribeUrl('/' . $res[$i]['email'] . '/api/v1/client/subscribe?token=' . $res[$i]['token']);
+            $res[$i]['subscribe_url'] = Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $res[$i]['email'] . $res[$i]['token']);
         }
         return response([
             'data' => $res,
@@ -168,7 +168,7 @@ class UserController extends Controller
             $deviceLimit = $user['device_limit'] ? $user['device_limit'] : NULL;
             $notUseFlow = (($user['transfer_enable'] - ($user['u'] + $user['d'])) / 1073741824) ?? 0;
             $planName = $user['plan_name'] ?? '无订阅';
-            $subscribeUrl = Helper::getSubscribeUrl('/' . $user['email'] . '/api/v1/client/subscribe?token=' . $user['token']);
+            $subscribeUrl = Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $user['email'] . $user['token']);
             $data .= "{$user['email']},{$balance},{$commissionBalance},{$transferEnable},{$deviceLimit},{$notUseFlow},{$expireDate},{$planName},{$subscribeUrl}\r\n";
         }
         echo "\xEF\xBB\xBF" . $data;
@@ -248,7 +248,7 @@ class UserController extends Controller
             $expireDate = $user['expired_at'] === NULL ? '长期有效' : date('Y-m-d H:i:s', $user['expired_at']);
             $createDate = date('Y-m-d H:i:s', $user['created_at']);
             $password = $request->input('password') ?? $user['email'];
-            $subscribeUrl = Helper::getSubscribeUrl('/' . $user['email'] . '/api/v1/client/subscribe?token=' . $user['token']);
+            $subscribeUrl = Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $user['email'] . $user['token']);
             $data .= "{$user['email']},{$password},{$expireDate},{$user['uuid']},{$createDate},{$subscribeUrl}\r\n";
         }
         echo $data;

@@ -145,7 +145,7 @@ class UserController extends Controller
         // 统计在线设备
         // $cacheKey = 'ALIVE_IP_USER_' . $user['id'];
         // $user['alive_ip'] = Cache::get($cacheKey)['alive_ip'] ?? 0;
-        $user['subscribe_url'] = Helper::getSubscribeUrl("/{$user['email']}/api/v1/client/subscribe?token={$user['token']}");
+        $user['subscribe_url'] = Helper::getSubscribeUrl("/api/v1/client/subscribe?token={$user['email']}{$user['token']}");
         $userService = new UserService();
         $user['reset_day'] = $userService->getResetDay($user);
         return $this->success($user);
@@ -162,7 +162,7 @@ class UserController extends Controller
         if (!$user->save()) {
             return $this->fail([400, __('Reset failed')]);
         }
-        return $this->success(Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $user->token));
+        return $this->success(Helper::getSubscribeUrl('/api/v1/client/subscribe?token=' . $user->email . $user->token));
     }
 
     public function update(UserUpdate $request)

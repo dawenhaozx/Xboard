@@ -63,7 +63,7 @@ class Surfboard
         }
 
         // Subscription link
-        $subsURL = Helper::getSubscribeUrl("/{$user['email']}/api/v1/client/subscribe?token={$user['token']}");
+        $subsURL = Helper::getSubscribeUrl("/api/v1/client/subscribe?token={$user['email']}{$user['token']}");
         $subsDomain = request()->header('Host');
 
         $config = str_replace('$subs_link', $subsURL, $config);

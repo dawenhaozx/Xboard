@@ -63,9 +63,9 @@ class Surge
         }
 
         // Subscription link
-        $subsURL = Helper::getSubscribeUrl("/{$user['email']}/api/v1/client/subscribe?token={$user['token']}");
+        $subsURL = Helper::getSubscribeUrl("/api/v1/client/subscribe?token={$user['email']}{$user['token']}");
         $subsDomain = request()->header('Host');
-        $subsURL = 'https://' . $subsDomain . '/' . $user['email'] . '/api/v1/client/subscribe?token=' . $user['token'];
+        $subsURL = 'https://' . $subsDomain . '/api/v1/client/subscribe?token=' . $user['email'] . $user['token'];
 
         $config = str_replace('$subs_link', $subsURL, $config);
         $config = str_replace('$subs_domain', $subsDomain, $config);
