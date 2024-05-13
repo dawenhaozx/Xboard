@@ -29,6 +29,7 @@ class ConfigSave extends FormRequest
         'app_description' => '',
         'app_url' => 'nullable|url',
         'subscribe_url' => 'nullable',
+        'subscribe_path' => 'nullable|regex:/^\\//',
         'try_out_enable' => 'in:0,1',
         'try_out_plan_id' => 'integer',
         'try_out_hour' => 'numeric',
@@ -110,6 +111,7 @@ class ConfigSave extends FormRequest
         return [
             'app_url.url' => '站点URL格式不正确，必须携带http(s)://',
             'subscribe_url.url' => '订阅URL格式不正确，必须携带http(s)://',
+            'subscribe_path.regex' => '订阅路径必须以/开头',
             'server_token.min' => '通讯密钥长度必须大于16位',
             'tos_url.url' => '服务条款URL格式不正确，必须携带http(s)://',
             'telegram_discuss_link.url' => 'Telegram群组地址必须为URL格式，必须携带http(s)://',

@@ -50,3 +50,7 @@ Route::get('/' . admin_setting('secure_path', admin_setting('frontend_admin_path
         'secure_path' => admin_setting('secure_path', admin_setting('frontend_admin_path', hash('crc32b', config('app.key'))))
     ]);
 });
+
+if (!empty(admin_setting('subscribe_path'))) {
+    Route::get(admin_setting('subscribe_path'), 'V1\\Client\\ClientController@subscribe')->middleware('client');
+}

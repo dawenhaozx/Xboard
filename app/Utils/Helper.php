@@ -108,8 +108,9 @@ class Helper
         }
     }
 
-    public static function getSubscribeUrl($path)
+    public static function getSubscribeUrl($token)
     {
+        $path = admin_setting('subscribe_path', '/api/v1/client/subscribe') . "?token={$token}";
         $subscribeUrls = explode(',', admin_setting('subscribe_url'));
         $subscribeUrl = $subscribeUrls[array_rand($subscribeUrls)];
         $subscribeUrl = self::replaceRandomNumber($subscribeUrl);
